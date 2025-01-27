@@ -16,5 +16,73 @@
         "ms-python.python"
       ]pip install -r requirements.txt
     }jupyter notebook --port 8888 --no-browser
-  }
+  }import pandas as pd
+import matplotlib.pyplot as plt
+
+def calculate_bollinger_squeeze(df, window=20, sigma=2, squeeze_threshold=0.5):
+    """
+    Calculate Bollinger Bands and Squeeze signals for a price DataFrame
+    
+    Parameters:
+    df (DataFrame): Must contain 'Close' column
+    window (int): Moving average window
+    sigma (float): Standard deviation multiplier
+    squeeze_threshold (float): Bandwidth % threshold to identify squeeze
+    
+    Returns:
+    DataFrame: Original data with Bollinger Band columns added
+    """
+    try:
+        # Calculate components
+        df['MA'] = df['Close'].rolling(window=window).mean()
+        rolling_std = df['Close'].rolling(window=window).std()
+        
+        # Calculate Bollinger Bands
+        df['Upper'] = df['MA'] + (sigma * rolling_std)
+        df['Lower'] = df['MA'] - (sigma * rolling_std)
+        
+        # Identify squeeze condition
+        df['Squeeze'] = (df['Upper'] - df['Lower']) / df['MA'] < squeeze_threshold
+        
+        return df
+    
+    except KeyError:
+        raise ValueError("DataFrame must contain 'Close' column")
+    except Exception as e:
+        print(f"Error calculating Bollinger Bands: {str(e)}")
+        return df
+
+# Example usage
+if __name__ == "__main__":
+    # Create sample data
+    data = {
+        'Close': [30000, 31000, 30500, 32000, 31800, 
+                  31500, 32500, 33000, 32800, 33500]
+    }
+    df = pd.DataFrame(data)
+    
+    # Calculate Bollinger Squeeze
+    df = calculate_bollinger_squeeze(df, window=3, sigma=1.5)
+    
+    # Plot results
+    plt.figure(figsize=(12, 6))
+    plt.title('Bollinger Band Squeeze Detection')
+    plt.plot(df['Close'], label='Price', color='blue')
+    plt.plot(df['Upper'], linestyle='--', label='Upper Band', color='orange')
+    plt.plot(df['Lower'], linestyle='--', label='Lower Band', color='green')
+    
+    # Highlight squeeze periods
+    squeeze_points = df[df['Squeeze']]
+    plt.scatter(squeeze_points.index, squeeze_points['Close'], 
+                color='red', label='Squeeze Signal')
+    
+    plt.legend()
+    plt.xlabel('Time Period')
+    plt.ylabel('Price')
+    plt.grid(True)
+    plt.show()
+
+    # Display DataFrame with signals
+    print("\nProcessed Data with Bollinger Bands:")
+    print(df[['Close', 'MA', 'Upper', 'Lower', 'Squeeze']])
 }
